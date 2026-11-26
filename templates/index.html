@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallet &amp; Exchange Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --wash:rgba(11,11,11,.04);
+    --s1:#2a78d6; --s2:#eb6834; --bar:#2a78d6; --warn:#fab219; --good-text:#006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.05);
+      --s1:#3987e5; --s2:#d95926; --bar:#3987e5; --good-text:#0ca30c;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--page); color:var(--ink);
+         font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding:28px 20px 56px; }
+  h1 { font-size:22px; margin:0; font-weight:650; letter-spacing:-.01em; }
+  .sub { color:var(--ink-2); margin:2px 0 18px; }
+  .tag { display:inline-block; font-size:12px; padding:1px 8px; border:1px solid var(--border);
+         border-radius:999px; color:var(--ink-2); margin-left:8px; vertical-align:2px; }
+
+  /* filters */
+  .filters { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; align-items:center; }
+  .filters select, .filters input, .filters button {
+    font:inherit; color:var(--ink); background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:7px 10px; }
+  .filters input { min-width:240px; }
+  .filters button { cursor:pointer; }
+  .filters button:hover, .filters select:hover { background:var(--wash); }
+  .filters :focus-visible, th button:focus-visible, tr.row:focus-visible { outline:2px solid var(--s1); outline-offset:1px; }
+
+  /* cards */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .card h2 { font-size:14px; margin:0 0 2px; font-weight:600; }
+  .card .hint { color:var(--ink-2); font-size:12.5px; margin-bottom:12px; }
+  .grid { display:grid; gap:14px; }
+  .kpis { grid-template-columns:repeat(6,1fr); margin-bottom:14px; }
+  .two  { grid-template-columns:1fr 1.5fr; margin-bottom:14px; }
+  .two-b{ grid-template-columns:1.4fr 1fr; margin-bottom:14px; }
+  @media (max-width:980px){ .kpis{grid-template-columns:repeat(3,1fr)} .two,.two-b{grid-template-columns:1fr} }
+  @media (max-width:560px){ .kpis{grid-template-columns:repeat(2,1fr)} }
+  .kpi .label { color:var(--ink-2); font-size:12.5px; }
+  .kpi .value { font-size:26px; font-weight:650; letter-spacing:-.02em; margin-top:2px; }
+  .kpi .note  { font-size:12px; color:var(--muted); }
+
+  /* segmented bar */
+  .seg { display:flex; gap:2px; height:28px; margin:6px 0 12px; }
+  .seg > div { border-radius:4px; color:#fff; font-size:12.5px; font-weight:600;
+               padding:0 9px; display:flex; align-items:center; min-width:0; white-space:nowrap; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; color:var(--ink-2); font-size:12.5px; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .defs { margin-top:14px; font-size:12.5px; color:var(--ink-2); }
+  .defs b { color:var(--ink); font-weight:600; }
+
+  /* horizontal bars */
+  .hb { display:grid; grid-template-columns:96px 1fr 84px; gap:4px 10px; align-items:center; }
+  .hb .name { color:var(--ink-2); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hb .track { height:22px; display:flex; align-items:center; }
+  .hb .bar { height:16px; background:var(--bar); border-radius:0 4px 4px 0; min-width:2px; }
+  .hb .val { text-align:right; font-variant-numeric:tabular-nums; font-size:13px; }
+  .hb .row { display:contents; }
+  .hb .row:hover .name, .hb .row:hover .val { color:var(--ink); }
+  .hb .row:hover .bar { filter:brightness(1.12); }
+
+  /* line chart */
+  #line { width:100%; height:250px; display:block; }
+  #line text { fill:var(--muted); font-size:11.5px; }
+  details { margin-top:8px; font-size:12.5px; color:var(--ink-2); }
+  details table { width:100%; border-collapse:collapse; margin-top:6px; }
+  details td, details th { padding:3px 6px; text-align:right; border-bottom:1px solid var(--grid); }
+  details td:first-child, details th:first-child { text-align:left; }
+
+  /* wallets table */
+  .tablewrap { overflow:auto; }
+  table.w { width:100%; border-collapse:collapse; }
+  table.w th { text-align:left; font-weight:600; font-size:12.5px; color:var(--ink-2);
+               border-bottom:1px solid var(--axis); padding:0; white-space:nowrap; }
+  table.w th button { all:unset; cursor:pointer; padding:8px 10px; display:block; }
+  table.w th button:hover { color:var(--ink); }
+  table.w th.num, table.w td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  table.w td { padding:8px 10px; border-bottom:1px solid var(--grid); vertical-align:middle; }
+  tr.row { cursor:pointer; } tr.row:hover td { background:var(--wash); }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; }
+  .chip { display:inline-block; padding:1px 8px; margin:1px 4px 1px 0; border-radius:999px;
+          background:var(--wash); border:1px solid var(--border); font-size:12px; color:var(--ink-2); }
+  .review { display:inline-flex; gap:5px; align-items:center; margin-left:8px; font-size:12px; color:var(--ink); }
+  .review::before { content:"⚠"; color:#b57e00; }
+  .detail td { background:var(--wash); padding:10px 14px 14px; }
+  .detail table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .detail th, .detail td { padding:4px 8px; text-align:left; border-bottom:1px solid var(--grid); background:none; }
+  .detail .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .empty { color:var(--muted); padding:18px 0; text-align:center; }
+
+  #tip { position:fixed; pointer-events:none; z-index:10; background:var(--surface); color:var(--ink);
+         border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:12.5px;
+         box-shadow:0 4px 18px rgba(0,0,0,.14); display:none; max-width:260px; }
+  #tip b { font-weight:600; } #tip .r { display:flex; justify-content:space-between; gap:16px; }
+  .sr { position:absolute; left:-9999px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Wallet &amp; Exchange Dashboard <span class="tag">sample data</span></h1>
+  <p class="sub">Custodial vs non-custodial wallets and where their outgoing transactions go (last 90 days).</p>
+
+  <div class="filters" role="search">
+    <select id="f-type" aria-label="Wallet type">
+      <option value="">All wallet types</option>
+      <option value="custodial">Custodial</option>
+      <option value="non_custodial">Non-custodial</option>
+    </select>
+    <select id="f-chain" aria-label="Chain"><option value="">All chains</option></select>
+    <select id="f-ex" aria-label="Exchange"><option value="">All exchanges</option></select>
+    <input id="f-q" type="search" placeholder="Search address (0x…)" aria-label="Search address">
+    <button id="f-reset" type="button">Reset</button>
+  </div>
+
+  <div class="grid kpis" id="kpis"></div>
+
+  <div class="grid two">
+    <section class="card">
+      <h2>Wallet mix</h2>
+      <div class="hint">Share of wallets by type</div>
+      <div class="seg" id="seg" role="img" aria-label="Wallet mix"></div>
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>Custodial</span>
+        <span><i style="background:var(--s2)"></i>Non-custodial</span>
+      </div>
+      <div class="defs">
+        <p><b>Custodial</b> – an exchange-issued deposit address; funds sweep into one exchange.</p>
+        <p style="margin-bottom:0"><b>Non-custodial</b> – a user-held wallet; can send to many exchanges.</p>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Weekly outgoing volume (USD)</h2>
+      <div class="hint">By wallet type · first and last week may be partial</div>
+      <div class="legend" style="margin-bottom:6px">
+        <span><i style="background:var(--s1)"></i>Custodial</span>
+        <span><i style="background:var(--s2)"></i>Non-custodial</span>
+      </div>
+      <svg id="line" role="img" aria-label="Weekly outgoing volume by wallet type"></svg>
+      <details><summary>View as table</summary><div id="line-table"></div></details>
+    </section>
+  </div>
+
+  <div class="grid two-b">
+    <section class="card">
+      <h2>Volume by exchange (USD)</h2>
+      <div class="hint">Outgoing transactions that landed on a known exchange</div>
+      <div class="hb" id="by-ex"></div>
+    </section>
+    <section class="card">
+      <h2>Volume by chain (USD)</h2>
+      <div class="hint">All outgoing transactions</div>
+      <div class="hb" id="by-chain"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Wallets</h2>
+    <div class="hint">Click a column to sort · click a row to see recent transactions · <span id="shown"></span></div>
+    <div class="tablewrap">
+      <table class="w">
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<div id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => '$' + Math.round(n).toLocaleString('en-US');
+const compact = n => n >= 1e6 ? '$' + (n/1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n/1e3).toFixed(1) + 'K' : '$' + Math.round(n);
+const short = a => a.slice(0,8) + '…' + a.slice(-6);
+const TYPE = {custodial:['Custodial','var(--s1)'], non_custodial:['Non-custodial','var(--s2)']};
+const dayMs = 864e5;
+function ago(iso){ if(!iso) return '—'; const d=(Date.now()-new Date(iso))/dayMs;
+  return d<1 ? 'today' : d<2 ? 'yesterday' : Math.floor(d)+' days ago'; }
+const fmtDate = iso => new Date(iso+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+let DATA = null, sortKey = 'volume_usd', sortDir = -1, openId = null;
+
+/* ---------- tooltip ---------- */
+const tip = $('#tip');
+function showTip(html, x, y){ tip.innerHTML = html; tip.style.display='block';
+  const r = tip.getBoundingClientRect();
+  tip.style.left = Math.min(x+14, innerWidth - r.width - 10) + 'px';
+  tip.style.top  = Math.min(y+14, innerHeight - r.height - 10) + 'px'; }
+const hideTip = () => tip.style.display = 'none';
+
+/* ---------- filters ---------- */
+function qs(){ const p = new URLSearchParams();
+  [['type','#f-type'],['chain','#f-chain'],['exchange','#f-ex'],['q','#f-q']]
+    .forEach(([k,id]) => { const v=$(id).value.trim(); if(v) p.set(k,v); });
+  return p.toString(); }
+let timer;
+function reload(){ clearTimeout(timer); timer = setTimeout(async () => {
+  const r = await fetch('/api/data?' + qs()); DATA = await r.json(); openId = null; render(); }, 150); }
+
+async function init(){
+  const m = await (await fetch('/api/meta')).json();
+  m.chains.forEach(c => $('#f-chain').add(new Option(c.name, c.id)));
+  m.exchanges.forEach(e => $('#f-ex').add(new Option(e.name, e.id)));
+  ['#f-type','#f-chain','#f-ex'].forEach(id => $(id).addEventListener('change', reload));
+  $('#f-q').addEventListener('input', reload);
+  $('#f-reset').addEventListener('click', () => {
+    ['#f-type','#f-chain','#f-ex','#f-q'].forEach(id => $(id).value=''); reload(); });
+  reload();
+}
+
+/* ---------- renderers ---------- */
+function render(){ kpis(); seg(); line(); bars('#by-ex', DATA.by_exchange, 'exchange'); bars('#by-chain', DATA.by_chain, 'chain'); table(); }
+
+function kpis(){ const k = DATA.kpi;
+  const tiles = [
+    ['Wallets', k.wallets.toLocaleString(), ''],
+    ['Custodial', k.custodial.toLocaleString(), ''],
+    ['Non-custodial', k.non_custodial.toLocaleString(), ''],
+    ['Outgoing txs', k.txs.toLocaleString(), ''],
+    ['Outgoing volume', compact(k.volume_usd), 'USD, last 90 days'],
+    ['Needs review', k.needs_review.toLocaleString(), 'custodial, >1 exchange']];
+  $('#kpis').innerHTML = tiles.map(t => `<div class="card kpi"><div class="label">${t[0]}</div>
+    <div class="value">${t[1]}</div><div class="note">${t[2] || '&nbsp;'}</div></div>`).join(''); }
+
+function seg(){ const k = DATA.kpi, tot = k.custodial + k.non_custodial, el = $('#seg');
+  if(!tot){ el.innerHTML = '<div class="empty" style="width:100%">No wallets match</div>'; return; }
+  const parts = [['custodial',k.custodial],['non_custodial',k.non_custodial]].filter(p => p[1] > 0);
+  el.innerHTML = parts.map(([t,n]) => { const pct = n/tot*100;
+    return `<div data-t="${t}" data-n="${n}" style="flex:${n};background:${TYPE[t][1]}">${pct >= 14 ? Math.round(pct)+'%' : ''}</div>`; }).join('');
+  el.setAttribute('aria-label', parts.map(([t,n]) => `${TYPE[t][0]} ${n} wallets (${Math.round(n/tot*100)}%)`).join(', '));
+  el.querySelectorAll('div').forEach(d => {
+    d.onmousemove = e => showTip(`<b>${TYPE[d.dataset.t][0]}</b><div class="r"><span>Wallets</span><span>${d.dataset.n}</span></div>
+      <div class="r"><span>Share</span><span>${(d.dataset.n/tot*100).toFixed(1)}%</span></div>`, e.clientX, e.clientY);
+    d.onmouseleave = hideTip; }); }
+
+function bars(sel, rows, kind){ const el = $(sel);
+  if(!rows.length){ el.innerHTML = '<div class="empty" style="grid-column:1/-1">No data</div>'; return; }
+  const max = Math.max(...rows.map(r => r.volume_usd));
+  el.innerHTML = rows.map((r,i) => `<div class="row" data-i="${i}">
+      <div class="name" title="${esc(r.name)}">${esc(r.name)}</div>
+      <div class="track"><div class="bar" style="width:${Math.max(r.volume_usd/max*100,1)}%"></div></div>
+      <div class="val">${compact(r.volume_usd)}</div></div>`).join('');
+  el.querySelectorAll('.row').forEach(row => { const r = rows[row.dataset.i];
+    const f = e => showTip(`<b>${esc(r.name)}</b><div class="r"><span>Volume</span><span>${money(r.volume_usd)}</span></div>
+      <div class="r"><span>${kind==='exchange'?'Transactions':'Wallets'}</span><span>${(r.txs ?? r.wallets).toLocaleString()}</span></div>`, e.clientX, e.clientY);
+    row.querySelectorAll('div').forEach(c => { c.onmousemove = f; c.onmouseleave = hideTip; }); }); }
+
+function line(){ const svg = $('#line'), rows = DATA.weekly;
+  const W = svg.clientWidth || 640, H = 250, m = {l:52, r:16, t:12, b:26}, iw = W-m.l-m.r, ih = H-m.t-m.b;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = '';
+  $('#line-table').innerHTML = rows.length ? `<table><tr><th>Week of</th><th>Custodial</th><th>Non-custodial</th></tr>` +
+    rows.map(r => `<tr><td>${fmtDate(r.week)}</td><td>${money(r.custodial)}</td><td>${money(r.non_custodial)}</td></tr>`).join('') + '</table>' : '';
+  if(!rows.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle">No data</text>`; return; }
+  const maxV = Math.max(...rows.flatMap(r => [r.custodial, r.non_custodial]), 1);
+  const step = Math.pow(10, Math.floor(Math.log10(maxV/4))), mult = [1,2,2.5,5,10].find(k => maxV/(k*step) <= 4.2) || 10;
+  const tick = step*mult, top = Math.ceil(maxV/tick)*tick;
+  const x = i => m.l + (rows.length === 1 ? iw/2 : i/(rows.length-1)*iw), y = v => m.t + ih - v/top*ih;
+  let g = '';
+  for(let v=0; v<=top+1e-9; v+=tick){ g += `<line x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}" stroke="${v===0?'var(--axis)':'var(--grid)'}" stroke-width="1"/>
+     <text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${v>=1000 ? (v/1000)+'K' : v}</text>`; }
+  const xi = rows.length > 6 ? [0, Math.floor((rows.length-1)/2), rows.length-1] : rows.map((_,i)=>i);
+  xi.forEach(i => g += `<text x="${x(i)}" y="${H-6}" text-anchor="${i===0?'start':i===rows.length-1?'end':'middle'}">${fmtDate(rows[i].week)}</text>`);
+  [['custodial','--s1'],['non_custodial','--s2']].forEach(([k,c]) => {
+    g += `<polyline fill="none" stroke="var(${c})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+      points="${rows.map((r,i) => x(i)+','+y(r[k])).join(' ')}"/>`;
+    const li = rows.length-1;
+    g += `<circle cx="${x(li)}" cy="${y(rows[li][k])}" r="4" fill="var(${c})" stroke="var(--surface)" stroke-width="2"/>`; });
+  g += `<line id="xh" y1="${m.t}" y2="${m.t+ih}" stroke="var(--axis)" stroke-width="1" style="display:none"/>
+        <circle id="d1" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2" style="display:none"/>
+        <circle id="d2" r="4" fill="var(--s2)" stroke="var(--surface)" stroke-width="2" style="display:none"/>
+        <rect id="hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent"/>`;
+  svg.innerHTML = g;
+  const hit = svg.querySelector('#hit');
+  hit.onmousemove = e => { const bx = svg.getBoundingClientRect(), px = (e.clientX - bx.left) * (W / bx.width);
+    const i = Math.max(0, Math.min(rows.length-1, Math.round((px - m.l)/iw*(rows.length-1)))), r = rows[i];
+    const xh = svg.querySelector('#xh'); xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.style.display='';
+    [['d1','custodial'],['d2','non_custodial']].forEach(([id,k]) => { const d = svg.querySelector('#'+id);
+      d.setAttribute('cx', x(i)); d.setAttribute('cy', y(r[k])); d.style.display=''; });
+    showTip(`<b>Week of ${fmtDate(r.week)}</b>
+      <div class="r"><span><span class="dot" style="background:var(--s1);margin-right:6px"></span>Custodial</span><span>${money(r.custodial)}</span></div>
+      <div class="r"><span><span class="dot" style="background:var(--s2);margin-right:6px"></span>Non-custodial</span><span>${money(r.non_custodial)}</span></div>`, e.clientX, e.clientY); };
+  hit.onmouseleave = () => { hideTip(); ['#xh','#d1','#d2'].forEach(s => svg.querySelector(s).style.display='none'); }; }
+
+const COLS = [['address','Address'],['chain','Chain'],['wallet_type','Type'],['exchange_names','Exchanges'],
+              ['tx_count','Txs','num'],['volume_usd','Volume (USD)','num'],['last_tx','Last tx']];
+function table(){
+  $('#thead').innerHTML = COLS.map(([k,l,c]) => `<th class="${c||''}" aria-sort="${k===sortKey?(sortDir>0?'ascending':'descending'):'none'}">
+    <button data-k="${k}">${l}${k===sortKey ? (sortDir>0?' ▲':' ▼') : ''}</button></th>`).join('');
+  $('#thead').querySelectorAll('button').forEach(b => b.onclick = () => {
+    sortDir = sortKey === b.dataset.k ? -sortDir : (['address','chain','wallet_type'].includes(b.dataset.k) ? 1 : -1);
+    sortKey = b.dataset.k; table(); });
+  const rows = [...DATA.wallets].sort((a,b) => {
+    let x = a[sortKey], y = b[sortKey]; if(Array.isArray(x)){ x = x.join(); y = y.join(); }
+    return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
+  $('#shown').textContent = `showing ${rows.length} of ${DATA.kpi.wallets} wallets`;
+  if(!rows.length){ $('#tbody').innerHTML = '<tr><td colspan="7" class="empty">No wallets match these filters.</td></tr>'; return; }
+  $('#tbody').innerHTML = rows.map(w => `<tr class="row" tabindex="0" data-id="${w.wallet_id}">
+      <td class="mono" title="${esc(w.address)}">${short(w.address)}</td>
+      <td>${esc(w.chain)}</td>
+      <td><span class="dot" style="background:${TYPE[w.wallet_type][1]}"></span>${TYPE[w.wallet_type][0]}${w.needs_review ? '<span class="review" title="Custodial wallet sending to more than one exchange">Review</span>' : ''}</td>
+      <td>${w.exchange_names.length ? w.exchange_names.map(n => `<span class="chip">${esc(n)}</span>`).join('') : '<span style="color:var(--muted)">—</span>'}</td>
+      <td class="num">${w.tx_count.toLocaleString()}</td>
+      <td class="num">${money(w.volume_usd)}</td>
+      <td>${ago(w.last_tx)}</td></tr>`).join('');
+  $('#tbody').querySelectorAll('tr.row').forEach(tr => {
+    const go = () => toggle(tr);
+    tr.onclick = go; tr.onkeydown = e => { if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } }; }); }
+
+async function toggle(tr){
+  const next = tr.nextElementSibling, id = tr.dataset.id;
+  if(next && next.classList.contains('detail')){ next.remove(); return; }
+  document.querySelectorAll('tr.detail').forEach(d => d.remove());
+  const d = document.createElement('tr'); d.className = 'detail';
+  d.innerHTML = '<td colspan="7">Loading…</td>'; tr.after(d);
+  const txs = await (await fetch('/api/wallet/' + id)).json();
+  d.firstChild.innerHTML = `<table><tr><th>Time</th><th>Tx hash</th><th>To</th><th>Exchange</th><th>Token</th><th class="num">Amount (USD)</th></tr>` +
+    txs.map(t => `<tr><td>${new Date(t.block_time).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+      <td class="mono">${short(t.tx_hash)}</td><td class="mono">${short(t.to_address)}</td>
+      <td>${t.exchange ? esc(t.exchange) : '<span style="color:var(--muted)">unknown</span>'}</td>
+      <td>${esc(t.token)}</td><td class="num">${money(t.amount_usd)}</td></tr>`).join('') + '</table>'; }
+
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => DATA && line(), 120); });
+init();
+</script>
+</body>
+</html>
